@@ -40,9 +40,15 @@ func initClient(apiKey string) {
 // ReformatText sends text to Claude Haiku for formatting cleanup.
 // Returns the cleaned text, or the original on any error.
 func ReformatText(raw string) string {
-	if !clientReady || len(raw) < 10 {
+	if !clientReady {
+		log.Println("[reformat] client not ready, returning raw")
 		return raw
 	}
+	if len(raw) < 10 {
+		log.Println("[reformat] text too short (<10 chars), returning raw")
+		return raw
+	}
+	log.Printf("[reformat] calling Claude Haiku with %d bytes...", len(raw))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -63,7 +69,9 @@ func ReformatText(raw string) string {
 	}
 
 	if len(resp.Content) > 0 && resp.Content[0].Text != "" {
+		log.Printf("[reformat] success, got %d bytes back", len(resp.Content[0].Text))
 		return resp.Content[0].Text
 	}
+	log.Println("[reformat] empty response, returning raw")
 	return raw
 }

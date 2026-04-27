@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"os"
 	"os/exec"
 	"strings"
 	"sync/atomic"
@@ -22,9 +24,13 @@ const (
 var popupVisible atomic.Bool
 
 func main() {
-	initClient("") // reads ANTHROPIC_API_KEY from env
+	fmt.Println("[main] pastebin starting...")
+	fmt.Printf("[main] ANTHROPIC_API_KEY set: %v\n", os.Getenv("ANTHROPIC_API_KEY") != "")
+	initClient("")
+	fmt.Println("[main] claude client ready")
 	events := make(chan ClipEvent, 10)
 	go MonitorKeyboard(events)
+	fmt.Println("[main] entering UI loop")
 	RunUI(events)
 }
 

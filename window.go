@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -36,9 +38,11 @@ func RunUI(events <-chan ClipEvent) {
 		for ev := range events {
 			switch ev {
 			case EventShow:
+				fmt.Println("[ui] EventShow received")
 				showClipboard(w)
 				popupVisible.Store(true)
 			case EventHide:
+				fmt.Println("[ui] EventHide received, hiding window")
 				w.Hide()
 				popupVisible.Store(false)
 			}
@@ -82,7 +86,9 @@ func showClipboard(w fyne.Window) {
 
 	// Reformat via Claude in background
 	go func() {
+		fmt.Printf("[ui] sending %d bytes to Claude for reformat...\n", len(raw))
 		cleaned := ReformatText(raw)
+		fmt.Printf("[ui] reformat done, got %d bytes back\n", len(cleaned))
 		label.SetText(cleaned)
 		status.SetText("  done")
 	}()
