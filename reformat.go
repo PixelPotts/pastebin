@@ -30,10 +30,21 @@ Return ONLY the cleaned text. No preamble, no explanation.`
 var client anthropic.Client
 var clientReady bool
 
+// sanitizeKey strips anything that isn't a printable ASCII character.
+func sanitizeKey(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '!' && r <= '~' { // printable ASCII, no spaces
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func initClient(apiKey string) {
-	key := strings.TrimSpace(apiKey)
+	key := sanitizeKey(apiKey)
 	if key == "" {
-		key = strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY"))
+		key = sanitizeKey(os.Getenv("ANTHROPIC_API_KEY"))
 	}
 	if key == "" {
 		log.Println("[reformat] WARNING: no API key found")
