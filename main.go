@@ -22,6 +22,7 @@ const (
 var popupVisible atomic.Bool
 
 func main() {
+	initClient("") // reads ANTHROPIC_API_KEY from env
 	events := make(chan ClipEvent, 10)
 	go MonitorKeyboard(events)
 	RunUI(events)

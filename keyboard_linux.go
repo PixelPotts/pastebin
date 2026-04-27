@@ -97,32 +97,45 @@ func MonitorKeyboard(events chan<- ClipEvent) {
 	}
 
 	var (
-		ctrlHeld      bool
-		lastCtrlC     time.Time
-		lastCPress    time.Time // dedup across multiple devices
-		holdTimer     *time.Timer
+		ctrlHeld   bool
+		lastCtrlC  time.Time
+		lastCPress time.Time // dedup across multiple devices
+		holdTimer  *time.Timer
+		closeTimer *time.Timer
 	)
 
 	for ev := range keyCh {
 		switch ev.code {
 		case keyLeftCtrl, keyRightCtrl:
 			ctrlHeld = ev.value != valRelease
-			// If ctrl released while hold timer active, cancel it
-			if !ctrlHeld && holdTimer != nil {
-				holdTimer.Stop()
-				holdTimer = nil
-			}
-
-		case keyC:
-			if !ctrlHeld || ev.value == valRelease {
-				// On release, cancel hold timer
-				if ev.value == valRelease && holdTimer != nil {
+			if !ctrlHeld {
+				if holdTimer != nil {
 					holdTimer.Stop()
 					holdTimer = nil
 				}
+				if closeTimer != nil {
+					closeTimer.Stop()
+					closeTimer = nil
+				}
+			}
+
+		case keyC:
+			if !ctrlHeld {
 				continue
 			}
-			// Deduplicate across multiple keyboard devices
+			if ev.value == valRelease {
+				// Released before timer fired — cancel
+				if holdTimer != nil {
+					holdTimer.Stop()
+					holdTimer = nil
+				}
+				if closeTimer != nil {
+					closeTimer.Stop()
+					closeTimer = nil
+				}
+				continue
+			}
+			// Press event — deduplicate across devices
 			now := time.Now()
 			if now.Sub(lastCPress) < dedupMs*time.Millisecond {
 				continue
@@ -130,8 +143,15 @@ func MonitorKeyboard(events chan<- ClipEvent) {
 			lastCPress = now
 
 			if popupVisible.Load() {
-				// Ctrl+C while popup open → close
-				events <- EventHide
+				// Popup open → close only after 800ms hold
+				if closeTimer != nil {
+					closeTimer.Stop()
+				}
+				closeTimer = time.AfterFunc(doublePressMs*time.Millisecond, func() {
+					if popupVisible.Load() {
+						events <- EventHide
+					}
+				})
 				lastCtrlC = time.Time{}
 			} else if !lastCtrlC.IsZero() && now.Sub(lastCtrlC) < doublePressMs*time.Millisecond {
 				// Double press → show

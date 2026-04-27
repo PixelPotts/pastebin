@@ -60,20 +60,30 @@ func showClipboard(w fyne.Window) {
 		return
 	}
 
-	// Text
-	text := ReadClipboardText()
-	if text == "" {
-		text = "(clipboard is empty)"
+	// Text — show raw immediately, then reformat in background
+	raw := ReadClipboardText()
+	if raw == "" {
+		raw = "(clipboard is empty)"
 	}
 
-	label := widget.NewLabel(text)
+	label := widget.NewLabel(raw)
 	label.Wrapping = fyne.TextWrapWord
 	label.TextStyle = fyne.TextStyle{Monospace: true}
 
-	scroll := container.NewVScroll(label)
-	scroll.SetMinSize(fyne.NewSize(700, 460))
+	status := widget.NewLabel("  reformatting...")
+	status.TextStyle = fyne.TextStyle{Italic: true}
 
-	w.SetContent(scroll)
+	scroll := container.NewVScroll(label)
+	scroll.SetMinSize(fyne.NewSize(700, 430))
+
+	w.SetContent(container.NewBorder(nil, status, nil, nil, scroll))
 	w.Show()
 	w.RequestFocus()
+
+	// Reformat via Claude in background
+	go func() {
+		cleaned := ReformatText(raw)
+		label.SetText(cleaned)
+		status.SetText("  done")
+	}()
 }
