@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -29,11 +31,16 @@ var client anthropic.Client
 var clientReady bool
 
 func initClient(apiKey string) {
-	if apiKey != "" {
-		client = anthropic.NewClient(option.WithAPIKey(apiKey))
-	} else {
-		client = anthropic.NewClient() // uses ANTHROPIC_API_KEY env
+	key := strings.TrimSpace(apiKey)
+	if key == "" {
+		key = strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY"))
 	}
+	if key == "" {
+		log.Println("[reformat] WARNING: no API key found")
+		return
+	}
+	log.Printf("[reformat] API key: %s...%s (%d chars)", key[:10], key[len(key)-4:], len(key))
+	client = anthropic.NewClient(option.WithAPIKey(key))
 	clientReady = true
 }
 
