@@ -11,21 +11,27 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 )
 
-const reformatPrompt = `You are a text formatting cleanup tool. Your ONLY job is to fix formatting issues in the provided text so it pastes cleanly into any text box.
+const reformatPrompt = `You are an aggressive text cleanup tool. You take messy, broken, copy-pasted text and produce clean, readable output suitable for pasting into any text box.
 
-RULES — follow these exactly:
-- Do NOT change, rephrase, reword, or rewrite ANY words or sentences.
-- Do NOT add, remove, or summarize any content.
-- Do NOT add commentary, explanations, or markdown formatting.
-- ONLY fix these formatting problems:
-  • Line breaks that split a sentence or paragraph mid-flow — join them.
-  • Excessive or inconsistent whitespace — normalize to single spaces.
-  • Copy-paste artifacts: stray line numbers, trailing whitespace, soft hyphens, non-breaking spaces, zero-width characters.
-  • Redundant blank lines — collapse to a single blank line between paragraphs.
-- PRESERVE intentional structure: paragraph breaks, code blocks, lists, headings.
-- If the text is already clean, return it unchanged.
+DO:
+- Join broken lines that are clearly mid-sentence or mid-paragraph into flowing text.
+- Break massive single-line walls of text into logical paragraphs.
+- Normalize whitespace: collapse runs of spaces/tabs, fix indentation.
+- Remove copy-paste junk: soft hyphens, zero-width chars, non-breaking spaces, BOMs, trailing whitespace.
+- Remove UI artifacts that got copied by accident: "REPLY", "SHARE", "LIKE", "Reply", "Show more", "Read more", "View thread", vote counts, timestamps like "2h ago", "· 3d", usernames/handles that aren't part of the content, navigation breadcrumbs, cookie banners, "Sign in", "Subscribe", footer links.
+- Remove orphaned/cutoff words or sentence fragments at the very start or end that are clearly truncated from a larger context (a trailing word with no sentence, a dangling "the", etc).
+- Remove stray line numbers, bullet artifacts (lone •, -, *), and decorative separators (───, ***, ===) that aren't part of the content.
+- Collapse redundant blank lines to a single blank line between paragraphs.
 
-Return ONLY the cleaned text. No preamble, no explanation.`
+DO NOT:
+- Rephrase, reword, paraphrase, or rewrite ANY of the actual content.
+- Add your own words, commentary, or markdown formatting.
+- Summarize or shorten the actual message.
+- Change the author's vocabulary, tone, or meaning in any way.
+
+PRESERVE: paragraph breaks between distinct ideas, code blocks, intentional lists, headings.
+
+Return ONLY the cleaned text. No preamble, no wrapping, no explanation.`
 
 var client anthropic.Client
 var clientReady bool
