@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -66,10 +65,10 @@ func findKeyboards() []string {
 func readDevice(path string, ch chan<- rawKeyEvent) {
 	f, err := os.Open(path)
 	if err != nil {
-		fmt.Printf("[kbd] FAIL open %s: %v\n", path, err)
+		log.Printf("[kbd] FAIL open %s: %v\n", path, err)
 		return
 	}
-	fmt.Printf("[kbd] reading %s\n", path)
+	log.Printf("[kbd] reading %s\n", path)
 	defer f.Close()
 
 	buf := make([]byte, inputEventSize)
@@ -90,7 +89,7 @@ func readDevice(path string, ch chan<- rawKeyEvent) {
 // MonitorKeyboard watches for Ctrl+C double-press / long-press and ESC.
 func MonitorKeyboard(events chan<- ClipEvent) {
 	keyboards := findKeyboards()
-	fmt.Printf("[kbd] found keyboards: %v\n", keyboards)
+	log.Printf("[kbd] found keyboards: %v\n", keyboards)
 	if len(keyboards) == 0 {
 		log.Fatal("no keyboard devices found — ensure you are in the 'input' group")
 	}
@@ -99,7 +98,7 @@ func MonitorKeyboard(events chan<- ClipEvent) {
 	for _, path := range keyboards {
 		go readDevice(path, keyCh)
 	}
-	fmt.Println("[kbd] monitoring started — waiting for key events...")
+	log.Println("[kbd] monitoring started — waiting for key events...")
 
 	var (
 		ctrlHeld   bool
@@ -115,7 +114,7 @@ func MonitorKeyboard(events chan<- ClipEvent) {
 			prev := ctrlHeld
 			ctrlHeld = ev.value != valRelease
 			if ctrlHeld != prev {
-				fmt.Printf("[kbd] ctrl %s\n", map[bool]string{true: "DOWN", false: "UP"}[ctrlHeld])
+				log.Printf("[kbd] ctrl %s\n", map[bool]string{true: "DOWN", false: "UP"}[ctrlHeld])
 			}
 			if !ctrlHeld {
 				if holdTimer != nil {
@@ -151,7 +150,7 @@ func MonitorKeyboard(events chan<- ClipEvent) {
 			}
 			lastCPress = now
 
-			fmt.Printf("[kbd] Ctrl+C press (popup=%v, lastCtrlC=%v ago)\n",
+			log.Printf("[kbd] Ctrl+C press (popup=%v, lastCtrlC=%v ago)\n",
 				popupVisible.Load(), func() string {
 					if lastCtrlC.IsZero() {
 						return "never"
@@ -160,19 +159,19 @@ func MonitorKeyboard(events chan<- ClipEvent) {
 				}())
 
 			if popupVisible.Load() {
-				fmt.Println("[kbd] -> starting 800ms close timer")
+				log.Println("[kbd] -> starting 800ms close timer")
 				if closeTimer != nil {
 					closeTimer.Stop()
 				}
 				closeTimer = time.AfterFunc(doublePressMs*time.Millisecond, func() {
 					if popupVisible.Load() {
-						fmt.Println("[kbd] -> close timer fired, hiding popup")
+						log.Println("[kbd] -> close timer fired, hiding popup")
 						events <- EventHide
 					}
 				})
 				lastCtrlC = time.Time{}
 			} else if !lastCtrlC.IsZero() && now.Sub(lastCtrlC) < doublePressMs*time.Millisecond {
-				fmt.Println("[kbd] -> DOUBLE PRESS detected, showing popup")
+				log.Println("[kbd] -> DOUBLE PRESS detected, showing popup")
 				events <- EventShow
 				lastCtrlC = time.Time{}
 				if holdTimer != nil {
@@ -180,14 +179,14 @@ func MonitorKeyboard(events chan<- ClipEvent) {
 					holdTimer = nil
 				}
 			} else {
-				fmt.Println("[kbd] -> first press, waiting for double/hold...")
+				log.Println("[kbd] -> first press, waiting for double/hold...")
 				lastCtrlC = now
 				if holdTimer != nil {
 					holdTimer.Stop()
 				}
 				holdTimer = time.AfterFunc(longPressMs*time.Millisecond, func() {
 					if !popupVisible.Load() {
-						fmt.Println("[kbd] -> hold timer fired, showing popup")
+						log.Println("[kbd] -> hold timer fired, showing popup")
 						events <- EventShow
 					}
 				})
@@ -195,7 +194,7 @@ func MonitorKeyboard(events chan<- ClipEvent) {
 
 		case keyEscape:
 			if ev.value == valPress && popupVisible.Load() {
-				fmt.Println("[kbd] ESC -> hiding popup")
+				log.Println("[kbd] ESC -> hiding popup")
 				events <- EventHide
 			}
 		}

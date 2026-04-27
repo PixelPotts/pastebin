@@ -7,11 +7,14 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"sync/atomic"
 )
+
+const logFile = "/mnt/1tb-ssd/random/pastebin/debug.log"
 
 // ClipEvent signals the UI to show or hide.
 type ClipEvent int
@@ -24,13 +27,20 @@ const (
 var popupVisible atomic.Bool
 
 func main() {
-	fmt.Println("[main] pastebin starting...")
-	fmt.Printf("[main] ANTHROPIC_API_KEY set: %v\n", os.Getenv("ANTHROPIC_API_KEY") != "")
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot open log: %v\n", err)
+		os.Exit(1)
+	}
+	log.SetOutput(f)
+	log.SetFlags(log.Ltime | log.Lmicroseconds)
+	log.Println("[main] pastebin starting...")
+	log.Printf("[main] ANTHROPIC_API_KEY set: %v", os.Getenv("ANTHROPIC_API_KEY") != "")
 	initClient("")
-	fmt.Println("[main] claude client ready")
+	log.Println("[main] claude client ready")
 	events := make(chan ClipEvent, 10)
 	go MonitorKeyboard(events)
-	fmt.Println("[main] entering UI loop")
+	log.Println("[main] entering UI loop")
 	RunUI(events)
 }
 
