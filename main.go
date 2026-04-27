@@ -58,21 +58,32 @@ func ReadClipboardText() string {
 	return ""
 }
 
-// ReadClipboardImage returns a decoded image from the clipboard, or nil.
-func ReadClipboardImage() image.Image {
-	// Check if clipboard has image targets
-	targets, err := exec.Command("xclip", "-selection", "clipboard", "-t", "TARGETS", "-o").Output()
-	if err != nil || !strings.Contains(string(targets), "image/") {
-		return nil
-	}
+// ClipboardHasImage returns true if the clipboard contains an image.
+func ClipboardHasImage() bool {
+	targets, _ := exec.Command("xclip", "-selection", "clipboard", "-t", "TARGETS", "-o").Output()
+	return strings.Contains(string(targets), "image/")
+}
 
+// ReadClipboardImageBytes returns raw image bytes from the clipboard.
+func ReadClipboardImageBytes() []byte {
 	for _, mime := range []string{"image/png", "image/jpeg", "image/bmp", "image/gif"} {
 		out, err := exec.Command("xclip", "-selection", "clipboard", "-t", mime, "-o").Output()
 		if err == nil && len(out) > 8 {
-			if img, _, err := image.Decode(bytes.NewReader(out)); err == nil {
-				return img
-			}
+			return out
 		}
 	}
 	return nil
+}
+
+// ReadClipboardImage returns a decoded image from the clipboard, or nil.
+func ReadClipboardImage() image.Image {
+	data := ReadClipboardImageBytes()
+	if data == nil {
+		return nil
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil
+	}
+	return img
 }
