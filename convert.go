@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"fmt"
 	"image"
-	"image/color"
-	"image/draw"
 	"image/jpeg"
-	"image/png"
+	_ "image/png"
 	"log"
 	"os"
 	"os/exec"
@@ -17,19 +16,15 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	xdraw "golang.org/x/image/draw"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/basicfont"
-	"golang.org/x/image/font/opentype"
-	"golang.org/x/image/math/fixed"
 )
 
 const (
 	maxOCRDim    = 512
 	maxImgW      = 1200
 	maxImgH      = 2000
-	renderFont   = 14.0
 	imgMargin    = 24
 	charsPerLine = 80
+	pangoFont    = "DejaVu Sans Mono 14"
 )
 
 // ── clipboard writers ──
@@ -46,48 +41,38 @@ func WriteClipboardImage(data []byte) error {
 	return cmd.Run()
 }
 
-// ── text → image ──
+// ── text → image (via pango-view for emoji support) ──
 
 func TextToImage(text string) ([]byte, error) {
-	face := loadMonoFont()
-	lines := wrapLines(text, charsPerLine)
+	wrapped := strings.Join(wrapLines(text, charsPerLine), "\n")
 
-	m := face.Metrics()
-	lineH := m.Height.Ceil() + m.Height.Ceil()/4 // ~1.25x spacing
+	tmp, err := os.CreateTemp("", "paste-*.png")
+	if err != nil {
+		return nil, fmt.Errorf("temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	tmp.Close()
+	defer os.Remove(tmpPath)
 
-	maxW := 0
-	for _, l := range lines {
-		if w := font.MeasureString(face, l).Ceil(); w > maxW {
-			maxW = w
-		}
+	cmd := exec.Command("pango-view",
+		"--font="+pangoFont,
+		"--background=#1e1e1e",
+		"--foreground=#d4d4d4",
+		fmt.Sprintf("--margin=%d", imgMargin),
+		"-q", "-o", tmpPath,
+		"/dev/stdin",
+	)
+	cmd.Stdin = strings.NewReader(wrapped)
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("pango-view: %w: %s", err, out)
 	}
 
-	imgW := min(maxW+imgMargin*2, maxImgW)
-	imgH := min(len(lines)*lineH+imgMargin*2, maxImgH)
-
-	img := image.NewRGBA(image.Rect(0, 0, imgW, imgH))
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.NRGBA{30, 30, 30, 255}}, image.Point{}, draw.Src)
-
-	d := &font.Drawer{
-		Dst:  img,
-		Src:  image.NewUniform(color.NRGBA{212, 212, 212, 255}),
-		Face: face,
+	data, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("read rendered image: %w", err)
 	}
-	baseline := imgMargin + m.Ascent.Ceil()
-	for i, l := range lines {
-		y := baseline + i*lineH
-		if y > imgH-imgMargin {
-			break
-		}
-		d.Dot = fixed.P(imgMargin, y)
-		d.DrawString(l)
-	}
-
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return data, nil
 }
 
 func wrapLines(text string, maxChars int) []string {
@@ -113,30 +98,6 @@ func wrapLines(text string, maxChars int) []string {
 		}
 	}
 	return out
-}
-
-func loadMonoFont() font.Face {
-	for _, p := range []string{
-		"/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-		"/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
-		"/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
-		"/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
-	} {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		parsed, err := opentype.Parse(data)
-		if err != nil {
-			continue
-		}
-		face, err := opentype.NewFace(parsed, &opentype.FaceOptions{Size: renderFont, DPI: 96})
-		if err != nil {
-			continue
-		}
-		return face
-	}
-	return basicfont.Face7x13
 }
 
 // ── image → text (OCR via Claude vision) ──

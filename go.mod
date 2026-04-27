@@ -5,6 +5,7 @@ go 1.23.0
 require (
 	fyne.io/fyne/v2 v2.4.5
 	github.com/anthropics/anthropic-sdk-go v1.38.0
+	golang.org/x/image v0.11.0
 )
 
 require (
@@ -37,7 +38,6 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/yuin/goldmark v1.5.5 // indirect
-	golang.org/x/image v0.11.0 // indirect
 	golang.org/x/mobile v0.0.0-20230531173138-3c911d8e3eda // indirect
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
